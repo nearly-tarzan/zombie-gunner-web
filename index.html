@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zombie Gunner 3D</title>
+  <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #000; }
+    #app { position: fixed; inset: 0; cursor: none; } /* crosshair replaces the cursor */
+    #hud {
+      position: fixed; top: 10px; left: 10px; z-index: 10;
+      font-family: Consolas, monospace; font-size: 13px; color: #fff;
+      background: rgba(0, 0, 0, 0.45); padding: 8px 12px; border-radius: 6px;
+      pointer-events: none; line-height: 1.6; white-space: pre;
+    }
+    /* Mouse-aimed crosshair — pinned to the pointer, drawn over the canvas */
+    #crosshair {
+      position: fixed; top: 0; left: 0; z-index: 20;
+      width: 26px; height: 26px; margin: 0; pointer-events: none;
+      transform: translate(50%, 50%) translate(-50%, -50%);
+    }
+    #crosshair::before, #crosshair::after {
+      content: ''; position: absolute; background: rgba(255, 60, 40, 0.9);
+      box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    }
+    #crosshair::before { left: 50%; top: 0; width: 2px; height: 100%; transform: translateX(-50%); }
+    #crosshair::after  { top: 50%; left: 0; height: 2px; width: 100%; transform: translateY(-50%); }
+    /* Game over — the boss reached the truck and smashed it (one hit). */
+    #gameover {
+      position: fixed; inset: 0; z-index: 30; display: none; cursor: pointer;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: radial-gradient(circle at center, rgba(70,0,0,0.45), rgba(15,0,0,0.72));
+      font-family: Consolas, monospace; text-align: center; user-select: none;
+    }
+    #gameover.show { display: flex; }
+    #gameover .go-title {
+      font-size: 84px; font-weight: 900; color: #ff3a28; letter-spacing: 8px;
+      text-shadow: 0 0 26px rgba(255,40,20,0.6), 0 4px 12px #000;
+    }
+    #gameover .go-sub { font-size: 22px; margin-top: 14px; color: #ffd7cf; }
+    #gameover .go-hint { font-size: 15px; margin-top: 30px; color: #d8c3c0; opacity: 0.85; }
+    /* v1.1 — level select menu */
+    #menu {
+      position: fixed; inset: 0; z-index: 40; display: none; cursor: default;
+      flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+      background: radial-gradient(circle at center, rgba(20,16,8,0.55), rgba(8,6,2,0.85));
+      font-family: Consolas, monospace; text-align: center; user-select: none;
+    }
+    #menu.show { display: flex; }
+    #menu .m-title {
+      font-size: 64px; font-weight: 900; color: #ffb347; letter-spacing: 6px;
+      text-shadow: 0 0 22px rgba(255,140,40,0.45), 0 4px 12px #000; margin-bottom: 2px;
+    }
+    #menu .m-sub { font-size: 17px; color: #e8d8b8; margin-bottom: 22px; opacity: 0.9; }
+    .m-btn {
+      font-family: Consolas, monospace; font-size: 18px; letter-spacing: 2px; cursor: pointer;
+      color: #ffe8c8; background: rgba(60,40,15,0.65); border: 1px solid rgba(255,180,80,0.55);
+      border-radius: 6px; padding: 12px 34px; min-width: 340px;
+    }
+    .m-btn:hover { background: rgba(120,75,20,0.8); }
+    .m-btn.m-sandbox { margin-top: 18px; color: #cfe0ea; border-color: rgba(160,200,230,0.5); background: rgba(25,40,55,0.6); }
+    .m-btn.m-sandbox:hover { background: rgba(45,75,100,0.75); }
+    /* level buttons are generated from LEVELS — scroll if the ladder grows long */
+    #menu-levels { display: flex; flex-direction: column; gap: 12px; max-height: 62vh; overflow-y: auto; padding: 2px; }
+    /* v1.1 — run complete */
+    #wincard {
+      position: fixed; inset: 0; z-index: 35; display: none; cursor: default;
+      flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+      background: radial-gradient(circle at center, rgba(0,50,10,0.4), rgba(0,16,4,0.72));
+      font-family: Consolas, monospace; text-align: center; user-select: none;
+    }
+    #wincard.show { display: flex; }
+    #wincard .w-title {
+      font-size: 72px; font-weight: 900; color: #4dff6a; letter-spacing: 8px;
+      text-shadow: 0 0 26px rgba(60,255,110,0.5), 0 4px 12px #000;
+    }
+    #wincard .w-sub { font-size: 21px; color: #d8ffd0; margin-bottom: 24px; }
+    /* v1.1 — level progress bar (top center) */
+    #levelbar {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 10;
+      width: min(560px, 55vw); display: none; pointer-events: none;
+      font-family: Consolas, monospace; text-align: center;
+    }
+    #levelbar .lb-name {
+      font-size: 14px; letter-spacing: 3px; color: #fff; text-shadow: 0 1px 4px #000; margin-bottom: 5px;
+    }
+    #levelbar .lb-track {
+      height: 9px; border-radius: 5px; overflow: hidden;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.35);
+    }
+    #levelbar .lb-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ffb347, #4dff6a); }
+    #levelbar .lb-note {
+      font-size: 13px; letter-spacing: 2px; color: #4dff6a; text-shadow: 0 1px 4px #000;
+      margin-top: 5px; min-height: 16px; font-weight: 700;
+    }
+    /* surge / threat warnings turn the note red and pulse */
+    #levelbar .lb-note.danger {
+      color: #ff5a3c; text-shadow: 0 0 9px rgba(255,70,35,0.75), 0 1px 4px #000;
+      animation: lb-pulse 0.6s ease-in-out infinite;
+    }
+    @keyframes lb-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud"></div>
+  <div id="crosshair"></div>
+  <div id="gameover">
+    <div class="go-title">GAME OVER</div>
+    <div class="go-sub">The boss smashed the convoy.</div>
+    <div class="go-hint">Press R or click to retry — M for menu</div>
+  </div>
+  <div id="levelbar">
+    <div class="lb-name"></div>
+    <div class="lb-track"><div class="lb-fill"></div></div>
+    <div class="lb-note"></div>
+  </div>
+  <div id="menu" class="show">
+    <div class="m-title">ZOMBIE GUNNER</div>
+    <div class="m-sub">Escort the convoy to the safe zone</div>
+    <div id="menu-levels"></div>
+    <button class="m-btn m-sandbox" id="menu-sandbox">SANDBOX</button>
+  </div>
+  <div id="wincard">
+    <div class="w-title">RUN COMPLETE</div>
+    <div class="w-sub"></div>
+    <button class="m-btn" id="win-next">NEXT LEVEL</button>
+    <button class="m-btn" id="win-replay">REPLAY</button>
+    <button class="m-btn m-sandbox" id="win-menu">MENU</button>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

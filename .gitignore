@@ -1,0 +1,12 @@
+node_modules/
+dist/
+scratch/
+*.log
+.DS_Store
+Thumbs.db
+
+# Local-only working files — not for the public repo.
+# CLAUDE.md is machine-local agent instructions; DEV_NOTES.md is the full
+# build log (references the Obsidian vault). README.md is the public face.
+CLAUDE.md
+DEV_NOTES.md

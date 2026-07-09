@@ -1,0 +1,5 @@
+shot0..shot3.wav — trimmed/normalized one-shots cut from "Gunshot Sounds"
+(https://opengameart.org/content/gunshot-sounds): live-fire recordings of a
+CZ-52 pistol, SKS, Mosin Nagant, and shotgun.
+License: CC0 (public domain). No attribution required; kept here for provenance.
+shot0 = CZ-52, shot1 = SKS, shot2 = Mosin Nagant, shot3 = shotgun.
